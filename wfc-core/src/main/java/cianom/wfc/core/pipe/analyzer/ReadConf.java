@@ -1,4 +1,4 @@
-package cianom.wfc.core.in;
+package cianom.wfc.core.pipe.analyzer;
 
 public interface ReadConf {
 

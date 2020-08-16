@@ -1,4 +1,4 @@
-package cianom.wfc.core.in;
+package cianom.wfc.core.api;
 
 
 import java.util.List;
@@ -15,6 +15,7 @@ public class PatternSet<T> {
     private final int height;
     private final Integer[][] sample;
     private final List<T> distinctValues;
+    private final Class<T> tClass;
 
 
     private final Integer[][] patterns;
@@ -27,6 +28,7 @@ public class PatternSet<T> {
                       final int height,
                       final Integer[][] sample,
                       final List<T> distinctValues,
+                      final Class<T> tClass,
                       final Integer[][] patterns,
                       final double[] weightByIndex,
                       final List<Integer> ordering) {
@@ -36,6 +38,7 @@ public class PatternSet<T> {
         this.height = height;
         this.sample = sample;
         this.distinctValues = distinctValues;
+        this.tClass = tClass;
         this.patterns = patterns;
         this.weightByIndex = weightByIndex;
         this.ordering = ordering;
@@ -76,6 +79,10 @@ public class PatternSet<T> {
 
     public List<T> getDistinctValues() {
         return distinctValues;
+    }
+
+    public Class<T> gettClass() {
+        return tClass;
     }
 
     public List<Integer> getOrdering() {

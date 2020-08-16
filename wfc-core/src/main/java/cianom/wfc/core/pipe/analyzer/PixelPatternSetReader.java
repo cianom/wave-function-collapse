@@ -1,11 +1,10 @@
-package cianom.wfc.image;
+package cianom.wfc.core.pipe.analyzer;
 
 import cianom.lib.IntPoint;
 import cianom.lib.MathUtil;
 import cianom.lib.Pair;
-import cianom.wfc.core.in.PatternSet;
-import cianom.wfc.core.in.PatternSetReader;
-import cianom.wfc.core.in.ReadConf;
+import cianom.wfc.core.api.Pipe;
+import cianom.wfc.core.api.PatternSet;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -15,20 +14,18 @@ import java.util.List;
 import java.util.*;
 import java.util.function.BiFunction;
 
-public class PixelPatternSetReader implements PatternSetReader<Color> {
+public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
 
     private final ReadConf conf;
-    private final URL imageURL;
 
 
-    public PixelPatternSetReader(final ReadConf conf,
-                                 final URL imageURL) {
+    public PixelPatternSetReader(final ReadConf conf) {
         this.conf = conf;
-        this.imageURL = imageURL;
     }
 
     @Override
-    public PatternSet<Color> read() throws Exception {
+    public PatternSet<Color> run(final URL imageURL) throws Exception {
+
         final BufferedImage data = ImageIO.read(imageURL.openStream());
         final List<Color> colors = new ArrayList<>();
         final int sourceWidth = data.getWidth();
@@ -55,7 +52,7 @@ public class PixelPatternSetReader implements PatternSetReader<Color> {
 
         final Integer[][] patterns = computerPatterns(r.one.length, conf.getN(), colors.size(), r.two);
 
-        return new PatternSet<>(conf.getN(), conf.getNominalGround(), sourceWidth, sourceHeight, sample, colors, patterns, r.one, r.two);
+        return new PatternSet<>(conf.getN(), conf.getNominalGround(), sourceWidth, sourceHeight, sample, colors, Color.class, patterns, r.one, r.two);
 
     }
 
