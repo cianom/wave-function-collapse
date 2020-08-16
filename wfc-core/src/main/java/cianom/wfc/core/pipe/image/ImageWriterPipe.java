@@ -31,11 +31,6 @@ public class ImageWriterPipe implements Pipe<Solver.Solution<Color>, BufferedIma
                 for (int x = 0; x < width; x++) {
                     int dx = x < width - N + 1 ? 0 : N - 1;
                     Color c = observed[x - dx + (y - dy) * width];
-//                            this.colors.get(
-//                                    this.patterns[observed[x - dx + (y - dy) * width]][dx +
-//                                            dy *
-//                                                    N]
-//                            );
 
                     result.setRGB(x, y, c.getRGB());
                 }
