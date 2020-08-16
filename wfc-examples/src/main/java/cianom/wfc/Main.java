@@ -4,7 +4,7 @@ import cianom.wfc.core.api.Pipeline;
 import cianom.wfc.core.api.PipelineBuilder;
 import cianom.wfc.core.pipe.image.ImageWriterPipe;
 import cianom.wfc.core.pipe.solver.Solver;
-import cianom.wfc.core.pipe.analyzer.PixelPatternSetReader;
+import cianom.wfc.core.pipe.pattern.PixelPatternSetReader;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -21,7 +21,7 @@ public class Main {
 
             final Pipeline<URL, BufferedImage> pipeline = PipelineBuilder
                     .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 2)))
-                    .then(new Solver<>(new Solver.ModelConfig(0, 43, 32, 32)))
+                    .then(new Solver<>(new Solver.ModelConfig(0, 42, 32, 32)))
                     .then(new ImageWriterPipe())
                     .build();
 

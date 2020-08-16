@@ -1,4 +1,4 @@
-package cianom.wfc.core.pipe.analyzer;
+package cianom.wfc.core.pipe.pattern;
 
 import cianom.lib.IntPoint;
 import cianom.lib.MathUtil;
