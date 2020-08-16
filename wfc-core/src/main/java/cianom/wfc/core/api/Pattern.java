@@ -7,11 +7,17 @@ public class Pattern {
     private final Integer[] data;
     private final int w;
     private final int h;
+    private final double frequency;
 
-    public Pattern(final Integer[] data, final int w, final int h) {
+    public Pattern(final Integer[] data, final int w, final int h, final double frequency) {
         this.data = data;
         this.w = w;
         this.h = h;
+        this.frequency = frequency;
+    }
+
+    public double getFrequency() {
+        return frequency;
     }
 
     public Integer[] getData() {
@@ -26,6 +32,15 @@ public class Pattern {
         return data.length;
     }
 
+    public int computeId(final int uniqueValuesCount) {
+        int result = 0, power = 1;
+        for (int i = 0; i < length(); i++) {
+            result += value(length() - 1 - i) * power;
+            power *= uniqueValuesCount;
+        }
+        return result;
+    }
+
     private Pattern map(final BiFunction<Integer, Integer, Integer> f) {
         Integer[] result = new Integer[data.length];
         for (int y = 0; y < h; y++) {
@@ -34,7 +49,7 @@ public class Pattern {
             }
         }
 
-        return new Pattern(result, w, h);
+        return new Pattern(result, w, h, frequency);
     }
 
     private int index(final int x, final int y) {
@@ -49,6 +64,10 @@ public class Pattern {
     public Pattern reflect() {
         return map((Integer x, Integer y) -> data[w - 1 - x + y * h]
         );
+    }
+
+    public Pattern incrFreq(final double amount) {
+        return new Pattern(data, w, h, frequency + amount);
     }
 
 /*

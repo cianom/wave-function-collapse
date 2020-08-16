@@ -1,6 +1,8 @@
 package cianom.wfc.core.api;
 
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class PatternSet<T> {
@@ -18,9 +20,7 @@ public class PatternSet<T> {
     private final Class<T> valueClass;
 
 
-    private final Pattern[] patterns;
-    private final double[] weightByIndex;
-    private final List<Integer> ordering;
+    private final LinkedHashMap<Integer, Pattern> patternsById;
 
     public PatternSet(final int n,
                       final int nominalGround,
@@ -29,9 +29,7 @@ public class PatternSet<T> {
                       final Integer[][] sample,
                       final List<T> distinctValues,
                       final Class<T> valueClass,
-                      final Pattern[] patterns,
-                      final double[] weightByIndex,
-                      final List<Integer> ordering) {
+                      final LinkedHashMap<Integer, Pattern> patternsById) {
         this.N = n;
         this.nominalGround = nominalGround;
         this.width = width;
@@ -39,17 +37,27 @@ public class PatternSet<T> {
         this.sample = sample;
         this.distinctValues = distinctValues;
         this.valueClass = valueClass;
-        this.patterns = patterns;
-        this.weightByIndex = weightByIndex;
-        this.ordering = ordering;
+        this.patternsById = patternsById;
     }
 
-    public Pattern[] getPatterns() {
-        return patterns;
+    public final Pattern getPatternByIndex(final int index) {
+        return getPatterns().toArray(new Pattern[0])[index];
+    }
+
+    public final Pattern getPatternById(final int id) {
+        return patternsById.get(id);
+    }
+
+    public final LinkedHashMap<Integer, Pattern> getPatternsById() {
+        return patternsById;
+    }
+
+    public final Collection<Pattern> getPatterns() {
+        return patternsById.values();
     }
 
     public int getPatternCount() {
-        return patterns.length;
+        return patternsById.size();
     }
 
     public int computeGround() {
@@ -83,13 +91,4 @@ public class PatternSet<T> {
     public Class<T> getValueClass() {
         return valueClass;
     }
-
-    public List<Integer> getOrdering() {
-        return ordering;
-    }
-
-    public double getWeight(final int index) {
-        return weightByIndex[index];
-    }
-
 }

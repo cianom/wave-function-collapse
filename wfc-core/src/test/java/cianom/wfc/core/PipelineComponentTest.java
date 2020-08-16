@@ -18,7 +18,7 @@ public class PipelineComponentTest {
     public void snapshot_pipeline_result() throws Exception {
 
         final Pipeline<URL, Solver.Solution<Color>> pipeline = PipelineBuilder
-                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 2)))
+                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 1)))
                 .then(new Solver<>(new Solver.ModelConfig(0, 42, 32, 32)))
                 .build();
 

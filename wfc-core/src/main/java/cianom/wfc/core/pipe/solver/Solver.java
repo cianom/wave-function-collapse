@@ -52,15 +52,15 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     void init(final PatternSet<T> in) {
 
         // Build propagator
-        final int T = in.getPatternCount();
+        final int patternCount = in.getPatternCount();
         propagator.clear();
-        final Pattern[] patterns = in.getPatterns();
+        final Pattern[] patterns = in.getPatterns().toArray(new Pattern[0]);
         for (final Boundary b : Boundary.values()) {
-            final int[][] xx = new int[T][];
+            final int[][] xx = new int[patternCount][];
             this.propagator.put(b, xx);
-            for (int t = 0; t < T; t++) {
+            for (int t = 0; t < patternCount; t++) {
                 final List<Integer> list = new ArrayList<>();
-                for (int t2 = 0; t2 < T; t2++) {
+                for (int t2 = 0; t2 < patternCount; t2++) {
                     if (agrees(patterns[t], patterns[t2], b, in.getN())) {
                         list.add(t2);
                     }
@@ -76,17 +76,18 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.wave = new boolean[conf.outWidth * conf.outHeight][];
         this.compatible = new int[this.wave.length][][];
         for (int i = 0; i < wave.length; i++) {
-            this.wave[i] = new boolean[T];
-            this.compatible[i] = new int[T][];
-            for (int t = 0; t < T; t++) this.compatible[i][t] = new int[4];
+            this.wave[i] = new boolean[patternCount];
+            this.compatible[i] = new int[patternCount][];
+            for (int t = 0; t < patternCount; t++) this.compatible[i][t] = new int[4];
         }
 
-        this.weightLogWeights = new double[T];
+        this.weightLogWeights = new double[patternCount];
         this.sumOfWeights = 0;
         this.sumOfWeightLogWeights = 0;
 
-        for (int t = 0; t < T; t++) {
-            final double weight = in.getWeight(t);
+        final Pattern[] patterns1 = in.getPatterns().toArray(new Pattern[0]);
+        for (int t = 0; t < patternCount; t++) {
+            final double weight = patterns1[t].getFrequency();
             this.weightLogWeights[t] = weight * Math.log(weight);
             this.sumOfWeights += weight;
             this.sumOfWeightLogWeights += this.weightLogWeights[t];
@@ -100,7 +101,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.sumsOfWeightLogWeights = new double[conf.outWidth * conf.outHeight];
         this.entropies = new double[conf.outWidth * conf.outHeight];
 
-        this.stack = new IntPoint[this.wave.length * T];
+        this.stack = new IntPoint[this.wave.length * patternCount];
         this.stacksize = 0;
     }
 
@@ -139,7 +140,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                         int dx = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
                         int dy = y < conf.outHeight - in.getN() + 1 ? 0 : in.getN() - 1;
                         int idx = dx + dy * in.getN();
-                        final Integer xxxx = in.getPatterns()[t].value(idx);
+                        final Integer xxxx = in.getPatternByIndex(t).value(idx);
                         final T v = in.getDistinctValues().get(xxxx);
                         observedOut[i] = v;
 
@@ -152,8 +153,9 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         } else {
             // Choose a pattern by a random sample, weighted by the pattern frequency in the source data
             double[] distribution = new double[T];
+            final Pattern[] patterns = in.getPatterns().toArray(new Pattern[0]);
             for (int t = 0; t < T; t++) {
-                distribution[t] = this.wave[argmin][t] ? in.getWeight(t) : 0;
+                distribution[t] = this.wave[argmin][t] ? patterns[t].getFrequency() : 0;
             }
 
             final int r = ArrayUtil.weightedRandomIndex(distribution, random.nextDouble());
@@ -173,13 +175,13 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     protected void ban(final PatternSet<T> in, int i, int t) {
         this.wave[i][t] = false;
 
-        int[] comp = this.compatible[i][t];
+        final int[] comp = this.compatible[i][t];
         for (int d = 0; d < 4; d++) comp[d] = 0;
         this.stack[this.stacksize] = new IntPoint(i, t);
         this.stacksize++;
 
         this.sumsOfOnes[i] -= 1;
-        this.sumsOfWeights[i] -= in.getWeight(t);
+        this.sumsOfWeights[i] -= in.getPatternByIndex(t).getFrequency();
         this.sumsOfWeightLogWeights[i] -= this.weightLogWeights[t];
 
         double sum = this.sumsOfWeights[i];
