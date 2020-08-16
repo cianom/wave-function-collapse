@@ -3,8 +3,9 @@ package cianom.wfc.core.pipe.pattern;
 import cianom.lib.IntPoint;
 import cianom.lib.MathUtil;
 import cianom.lib.Pair;
-import cianom.wfc.core.api.Pipe;
+import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
+import cianom.wfc.core.api.Pipe;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -50,20 +51,19 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
 
         final Pair<double[], List<Integer>> r = calculateWeights(sample, new HashSet<>(colors), new IntPoint(sourceWidth, sourceHeight));
 
-        final Integer[][] patterns = computerPatterns(r.one.length, conf.getN(), colors.size(), r.two);
+        final Pattern[] patterns = computerPatterns(r.one.length, conf.getN(), colors.size(), r.two);
 
         return new PatternSet<>(conf.getN(), conf.getNominalGround(), sourceWidth, sourceHeight, sample, colors, Color.class, patterns, r.one, r.two);
-
     }
 
-    private Integer[][] computerPatterns(final int T, final int N, final int distinctValuesCount, final List<Integer> ordering) {
-        final Integer[][] patterns = new Integer[T][];
+    private Pattern[] computerPatterns(final int T, final int N, final int distinctValuesCount, final List<Integer> ordering) {
+        final Pattern[] patterns = new Pattern[T];
 
         int counter = 0;
         final long W = MathUtil.pow(distinctValuesCount, N * N);
 
-        for (long w : ordering) {
-            patterns[counter] = patternFromIndex(w, W, distinctValuesCount, N);
+        for (final long index : ordering) {
+            patterns[counter] = patternFromIndex(index, W, distinctValuesCount, N);
 
             counter++;
         }
@@ -71,7 +71,7 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
         return patterns;
     }
 
-    private Integer[] patternFromIndex(final Long index, final long W, final int colorCount, final int N) {
+    private Pattern patternFromIndex(final Long index, final long W, final int colorCount, final int N) {
         long residue = index;
         long power = W;
         Integer[] result = new Integer[N * N];
@@ -88,29 +88,30 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
             result[i] = count;
         }
 
-        return result;
+        return new Pattern(result, N, N);
     }
 
 
-
     private Pair<double[], List<Integer>> calculateWeights(final Integer[][] sample,
-                                    final Set<Color> imageColors,
-                                    final IntPoint imageDimensions) {
+                                                           final Set<Color> imageColors,
+                                                           final IntPoint imageDimensions) {
         final Map<Integer, Double> weights = new HashMap<>();
         final List<Integer> ordering = new ArrayList<>();
 
-        for (int y = 0; y < (conf.isPeriodicInput() ? imageDimensions.getH() : imageDimensions.getH() - conf.getN() + 1); y++) {
-            for (int x = 0; x < (conf.isPeriodicInput() ? imageDimensions.getW() : imageDimensions.getW() - conf.getN() + 1); x++) {
-                Integer[][] ps = new Integer[8][];
+        final int readHeight = (conf.isPeriodicInput() ? imageDimensions.getH() : imageDimensions.getH() - conf.getN() + 1);
+        final int readWidth = (conf.isPeriodicInput() ? imageDimensions.getW() : imageDimensions.getW() - conf.getN() + 1);
+        for (int y = 0; y < readHeight; y++) {
+            for (int x = 0; x < readWidth; x++) {
+                final Pattern[] ps = new Pattern[8];
 
                 ps[0] = patternFromSample(sample, imageDimensions, x, y);
-                ps[1] = reflect(ps[0]);
-                ps[2] = rotate(ps[0]);
-                ps[3] = reflect(ps[2]);
-                ps[4] = rotate(ps[2]);
-                ps[5] = reflect(ps[4]);
-                ps[6] = rotate(ps[4]);
-                ps[7] = reflect(ps[6]);
+                ps[1] = ps[0].reflect();
+                ps[2] = ps[0].rotate();
+                ps[3] = ps[2].reflect();
+                ps[4] = ps[2].rotate();
+                ps[5] = ps[4].reflect();
+                ps[6] = ps[4].rotate();
+                ps[7] = ps[6].reflect();
 
                 for (int k = 0; k < conf.getSymmetry(); k++) {
                     int index = indexOf(imageColors.size(), ps[k]);
@@ -131,7 +132,7 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
         return new Pair<>(weightByIndex, ordering);
     }
 
-    private Integer[] pattern(final BiFunction<Integer, Integer, Integer> f) {
+    private Pattern pattern(final BiFunction<Integer, Integer, Integer> f) {
         Integer[] result = new Integer[conf.getN() * conf.getN()];
         for (int y = 0; y < conf.getN(); y++) {
             for (int x = 0; x < conf.getN(); x++) {
@@ -139,32 +140,22 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
             }
         }
 
-        return result;
+        return new Pattern(result, conf.getN(), conf.getN());
     }
 
-    private Integer[] patternFromSample(final Integer[][] sample,
-                                        final IntPoint imageDimensions,
-                                        final int x,
-                                        final int y) {
+    private Pattern patternFromSample(final Integer[][] sample,
+                                      final IntPoint imageDimensions,
+                                      final int x,
+                                      final int y) {
         return pattern(
                 (Integer dx, Integer dy) -> sample[(x + dx) % imageDimensions.getW()][(y + dy) % imageDimensions.getH()]
         );
     }
 
-    private Integer[] rotate(final Integer[] p) {
-        return pattern((Integer x, Integer y) -> p[conf.getN() - 1 - y + x * conf.getN()]
-        );
-    }
-
-    private Integer[] reflect(final Integer[] p) {
-        return pattern((Integer x, Integer y) -> p[conf.getN() - 1 - x + y * conf.getN()]
-        );
-    }
-
-    private Integer indexOf(final int colorsCount, final Integer[] p) {
+    private Integer indexOf(final int colorsCount, final Pattern p) {
         int result = 0, power = 1;
-        for (int i = 0; i < p.length; i++) {
-            result += p[p.length - 1 - i] * power;
+        for (int i = 0; i < p.length(); i++) {
+            result += p.value(p.length() - 1 - i) * power;
             power *= colorsCount;
         }
         return result;

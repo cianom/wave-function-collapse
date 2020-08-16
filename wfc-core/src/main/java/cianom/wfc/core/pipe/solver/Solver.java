@@ -4,6 +4,7 @@ package cianom.wfc.core.pipe.solver;
 import cianom.lib.ArrayUtil;
 import cianom.lib.Boundary;
 import cianom.lib.IntPoint;
+import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.Pipe;
 import cianom.wfc.core.api.PatternSet;
 
@@ -51,9 +52,9 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     void init(final PatternSet<T> in) {
 
         // Build propagator
-        final int T = in.getT();
+        final int T = in.getPatternCount();
         propagator.clear();
-        final Integer[][] patterns = in.getPatterns();
+        final Pattern[] patterns = in.getPatterns();
         for (final Boundary b : Boundary.values()) {
             final int[][] xx = new int[T][];
             this.propagator.put(b, xx);
@@ -104,7 +105,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     ObserveResult observe(final PatternSet<T> in, final Random random) {
-        final int T = in.getT();
+        final int T = in.getPatternCount();
         double min = 1e+3;
         int argmin = -1;
 
@@ -129,7 +130,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         if (argmin == -1) {
             // Build collapsed observations for completion
             this.observed = new int[conf.outWidth * conf.outHeight];
-            this.observedOut = (T[]) Array.newInstance(in.gettClass(), conf.outWidth * conf.outHeight);
+            this.observedOut = (T[]) Array.newInstance(in.getValueClass(), conf.outWidth * conf.outHeight);
             for (int i = 0; i < this.wave.length; i++) {
                 for (int t = 0; t < T; t++) {
                     if (this.wave[i][t]) {
@@ -138,8 +139,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                         int dx = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
                         int dy = y < conf.outHeight - in.getN() + 1 ? 0 : in.getN() - 1;
                         int idx = dx + dy * in.getN();
-//            int t = this.observed[x - dx + (y - dy) * this.targetWidth];
-                        final Integer xxxx = in.getPatterns()[t][idx];
+                        final Integer xxxx = in.getPatterns()[t].value(idx);
                         final T v = in.getDistinctValues().get(xxxx);
                         observedOut[i] = v;
 
@@ -228,7 +228,6 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.clear(in);
         final Random random = new Random(conf.seed);
 
-        // TODO do retries even make sense with a seeded generator?
         for (int l = 0; l < conf.limit || conf.limit == 0; l++) {
             ObserveResult result = this.observe(in, random);
             switch (result) {
@@ -246,11 +245,11 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     protected void clear(final PatternSet<T> in) {
-        final int T = in.getT();
+        final int patternCount = in.getPatternCount();
         final int ground = in.computeGround();
 
         for (int i = 0; i < this.wave.length; i++) {
-            for (int t = 0; t < T; t++) {
+            for (int t = 0; t < patternCount; t++) {
                 this.wave[i][t] = true;
                 for (int d = 0; d < 4; d++) {
                     final Boundary b = Boundary.values()[d];
@@ -259,7 +258,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 }
             }
 
-            this.sumsOfOnes[i] = in.getT();
+            this.sumsOfOnes[i] = in.getPatternCount();
             this.sumsOfWeights[i] = this.sumOfWeights;
             this.sumsOfWeightLogWeights[i] = this.sumOfWeightLogWeights;
             this.entropies[i] = this.startingEntropy;
@@ -267,7 +266,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             // Overlapping clear
             if (ground != 0) {
                 for (int x = 0; x < conf.outWidth; x++) {
-                    for (int t = 0; t < T; t++) {
+                    for (int t = 0; t < patternCount; t++) {
                         if (t != ground) {
                             this.ban(in, x + (conf.outHeight - 1) * conf.outWidth, t);
                         }
@@ -283,7 +282,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         }
     }
 
-    Boolean agrees(final Integer[] patterns1, final Integer[] patterns2, final Boundary b, final int N) {
+    Boolean agrees(final Pattern patterns1, final Pattern patterns2, final Boundary b, final int N) {
         final int xmin = Math.max(b.x, 0);
         final int xmax = b.x < 0 ? b.x + N : N;
         final int ymin = Math.max(b.y, 0);
@@ -291,7 +290,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
         for (int y = ymin; y < ymax; y++) {
             for (int x = xmin; x < xmax; x++) {
-                if (!Objects.equals(patterns1[x + N * y], patterns2[x - b.x + N * (y - b.y)])) return false;
+                if (!Objects.equals(patterns1.getData()[x + N * y], patterns2.getData()[x - b.x + N * (y - b.y)])) return false;
             }
         }
         return true;

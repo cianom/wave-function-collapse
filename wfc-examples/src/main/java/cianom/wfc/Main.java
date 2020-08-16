@@ -10,6 +10,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
+import java.util.Random;
 
 import static cianom.lib.Timing.time;
 
@@ -21,7 +22,7 @@ public class Main {
 
             final Pipeline<URL, BufferedImage> pipeline = PipelineBuilder
                     .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 2)))
-                    .then(new Solver<>(new Solver.ModelConfig(0, 42, 32, 32)))
+                    .then(new Solver<>(new Solver.ModelConfig(0, new Random().nextInt(), 32, 32)))
                     .then(new ImageWriterPipe())
                     .build();
 

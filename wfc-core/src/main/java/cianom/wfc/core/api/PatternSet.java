@@ -15,10 +15,10 @@ public class PatternSet<T> {
     private final int height;
     private final Integer[][] sample;
     private final List<T> distinctValues;
-    private final Class<T> tClass;
+    private final Class<T> valueClass;
 
 
-    private final Integer[][] patterns;
+    private final Pattern[] patterns;
     private final double[] weightByIndex;
     private final List<Integer> ordering;
 
@@ -28,8 +28,8 @@ public class PatternSet<T> {
                       final int height,
                       final Integer[][] sample,
                       final List<T> distinctValues,
-                      final Class<T> tClass,
-                      final Integer[][] patterns,
+                      final Class<T> valueClass,
+                      final Pattern[] patterns,
                       final double[] weightByIndex,
                       final List<Integer> ordering) {
         this.N = n;
@@ -38,23 +38,22 @@ public class PatternSet<T> {
         this.height = height;
         this.sample = sample;
         this.distinctValues = distinctValues;
-        this.tClass = tClass;
+        this.valueClass = valueClass;
         this.patterns = patterns;
         this.weightByIndex = weightByIndex;
         this.ordering = ordering;
     }
 
-
-    public Integer[][] getPatterns() {
+    public Pattern[] getPatterns() {
         return patterns;
     }
 
-    public int getT() {
-        return weightByIndex.length;
+    public int getPatternCount() {
+        return patterns.length;
     }
 
     public int computeGround() {
-        return (nominalGround + getT()) % getT();
+        return (nominalGround + getPatternCount()) % getPatternCount();
     }
 
     public int getN() {
@@ -81,8 +80,8 @@ public class PatternSet<T> {
         return distinctValues;
     }
 
-    public Class<T> gettClass() {
-        return tClass;
+    public Class<T> getValueClass() {
+        return valueClass;
     }
 
     public List<Integer> getOrdering() {
