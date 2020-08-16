@@ -1,6 +1,7 @@
 package cianom.wfc.core.api;
 
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +22,7 @@ public class PatternSet<T> {
 
 
     private final LinkedHashMap<Integer, Pattern> patternsById;
+    private final List<Pattern> patternsByIndex;
 
     public PatternSet(final int n,
                       final int nominalGround,
@@ -38,18 +40,15 @@ public class PatternSet<T> {
         this.distinctValues = distinctValues;
         this.valueClass = valueClass;
         this.patternsById = patternsById;
+        this.patternsByIndex = new ArrayList<>(patternsById.values());
     }
 
     public final Pattern getPatternByIndex(final int index) {
-        return getPatterns().toArray(new Pattern[0])[index];
+        return patternsByIndex.get(index);
     }
 
     public final Pattern getPatternById(final int id) {
         return patternsById.get(id);
-    }
-
-    public final LinkedHashMap<Integer, Pattern> getPatternsById() {
-        return patternsById;
     }
 
     public final Collection<Pattern> getPatterns() {

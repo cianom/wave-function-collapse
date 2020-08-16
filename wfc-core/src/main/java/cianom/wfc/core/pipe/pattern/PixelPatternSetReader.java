@@ -1,8 +1,6 @@
 package cianom.wfc.core.pipe.pattern;
 
 import cianom.lib.IntPoint;
-import cianom.lib.MathUtil;
-import cianom.lib.Pair;
 import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
 import cianom.wfc.core.api.Pipe;
@@ -47,9 +45,7 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
                 sample[x][y] = i;
             }
         }
-
         final LinkedHashMap<Integer, Pattern> patterns = scanPatterns(sample, new HashSet<>(colors), new IntPoint(sourceWidth, sourceHeight));
-
 
         return new PatternSet<>(conf.getN(), conf.getNominalGround(), sourceWidth, sourceHeight, sample, colors, Color.class, patterns);
     }

@@ -54,14 +54,13 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         // Build propagator
         final int patternCount = in.getPatternCount();
         propagator.clear();
-        final Pattern[] patterns = in.getPatterns().toArray(new Pattern[0]);
         for (final Boundary b : Boundary.values()) {
             final int[][] xx = new int[patternCount][];
             this.propagator.put(b, xx);
             for (int t = 0; t < patternCount; t++) {
                 final List<Integer> list = new ArrayList<>();
                 for (int t2 = 0; t2 < patternCount; t2++) {
-                    if (agrees(patterns[t], patterns[t2], b, in.getN())) {
+                    if (agrees(in.getPatternByIndex(t), in.getPatternByIndex(t2), b, in.getN())) {
                         list.add(t2);
                     }
                 }
@@ -85,9 +84,8 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.sumOfWeights = 0;
         this.sumOfWeightLogWeights = 0;
 
-        final Pattern[] patterns1 = in.getPatterns().toArray(new Pattern[0]);
         for (int t = 0; t < patternCount; t++) {
-            final double weight = patterns1[t].getFrequency();
+            final double weight = in.getPatternByIndex(t).getFrequency();
             this.weightLogWeights[t] = weight * Math.log(weight);
             this.sumOfWeights += weight;
             this.sumOfWeightLogWeights += this.weightLogWeights[t];
@@ -153,9 +151,8 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         } else {
             // Choose a pattern by a random sample, weighted by the pattern frequency in the source data
             double[] distribution = new double[T];
-            final Pattern[] patterns = in.getPatterns().toArray(new Pattern[0]);
             for (int t = 0; t < T; t++) {
-                distribution[t] = this.wave[argmin][t] ? patterns[t].getFrequency() : 0;
+                distribution[t] = this.wave[argmin][t] ? in.getPatternByIndex(t).getFrequency() : 0;
             }
 
             final int r = ArrayUtil.weightedRandomIndex(distribution, random.nextDouble());

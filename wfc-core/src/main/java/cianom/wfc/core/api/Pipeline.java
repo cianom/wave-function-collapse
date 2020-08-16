@@ -1,5 +1,7 @@
 package cianom.wfc.core.api;
 
+import cianom.lib.Timing;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -15,11 +17,12 @@ public class Pipeline<IN, OUT> {
     @SuppressWarnings("unchecked")
     public OUT run(final IN startingInput) throws Exception {
 
-        Object input = startingInput;
+        Object output = startingInput;
         for (final Pipe p : pipes) {
-            input = p.run(input);
+            final Object input = output;
+            output = Timing.time(p.getClass().getSimpleName(), () -> p.run(input));
         }
-        return (OUT) input;
+        return (OUT) output;
     }
 
 }
