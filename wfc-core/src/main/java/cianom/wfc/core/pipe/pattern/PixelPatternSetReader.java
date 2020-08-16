@@ -47,12 +47,12 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
         }
         final LinkedHashMap<Integer, Pattern> patterns = scanPatterns(sample, new HashSet<>(colors), new IntPoint(sourceWidth, sourceHeight));
 
-        return new PatternSet<>(conf.getN(), conf.getNominalGround(), sourceWidth, sourceHeight, sample, colors, Color.class, patterns);
+        return new PatternSet<>(conf.getN(), conf.getNominalGround(), colors, Color.class, patterns);
     }
 
     private LinkedHashMap<Integer, Pattern> scanPatterns(final Integer[][] sample,
-                                                       final Set<Color> imageColors,
-                                                       final IntPoint imageDimensions) {
+                                                         final Set<Color> imageColors,
+                                                         final IntPoint imageDimensions) {
         final LinkedHashMap<Integer, Pattern> patterns = new LinkedHashMap<>();
 
         final int sym = conf.getSymmetry();

@@ -1,5 +1,6 @@
 package cianom.wfc.core.api;
 
+import java.util.Arrays;
 import java.util.function.BiFunction;
 
 public class Pattern {
@@ -70,6 +71,15 @@ public class Pattern {
         return new Pattern(data, w, h, frequency + amount);
     }
 
+    @Override
+    public String toString() {
+        return "Pattern{" +
+                "data=" + Arrays.toString(data) +
+                ", w=" + w +
+                ", h=" + h +
+                ", frequency=" + frequency +
+                '}';
+    }
 /*
     array pattern
     N*N

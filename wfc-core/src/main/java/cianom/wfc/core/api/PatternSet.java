@@ -14,9 +14,6 @@ public class PatternSet<T> {
      */
     private final int N;
     private final int nominalGround;
-    private final int width;
-    private final int height;
-    private final Integer[][] sample;
     private final List<T> distinctValues;
     private final Class<T> valueClass;
 
@@ -26,17 +23,11 @@ public class PatternSet<T> {
 
     public PatternSet(final int n,
                       final int nominalGround,
-                      final int width,
-                      final int height,
-                      final Integer[][] sample,
                       final List<T> distinctValues,
                       final Class<T> valueClass,
                       final LinkedHashMap<Integer, Pattern> patternsById) {
         this.N = n;
         this.nominalGround = nominalGround;
-        this.width = width;
-        this.height = height;
-        this.sample = sample;
         this.distinctValues = distinctValues;
         this.valueClass = valueClass;
         this.patternsById = patternsById;
@@ -51,8 +42,8 @@ public class PatternSet<T> {
         return patternsById.get(id);
     }
 
-    public final Collection<Pattern> getPatterns() {
-        return patternsById.values();
+    public final List<Pattern> getPatterns() {
+        return patternsByIndex;
     }
 
     public int getPatternCount() {
@@ -65,18 +56,6 @@ public class PatternSet<T> {
 
     public int getN() {
         return N;
-    }
-
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public Integer[][] getSample() {
-        return sample;
     }
 
     public int getDistinctValuesCount() {
