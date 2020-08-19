@@ -26,7 +26,7 @@ public class Main {
             final Pipeline<URL, BufferedImage> pipeline = PipelineBuilder
                     .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 0)))
                     .then(new PatternPrinter<>())
-                    .then(new Solver<>(new Solver.ModelConfig(0, 32, 32, 32, false)))
+                    .then(new Solver<>(new Solver.ModelConfig(0, new Random().nextInt(), 48, 48, false)))
                     .then(new ImageWriterPipe())
                     .build();
 

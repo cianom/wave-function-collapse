@@ -15,13 +15,11 @@ import java.util.*;
 public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     private final ModelConfig conf;
+
     protected final Map<Boundary, int[][]> propagator;
     protected int[] observed;
     protected T[] observedOut;
-
-    IntPoint[] stack;
-    int stacksize;
-
+    private Stack<IntPoint> stack;
     private PositionState[] positions;
 
     public Solver(final ModelConfig conf) {
@@ -65,8 +63,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             this.positions[i] = PositionState.create(in);
         }
 
-        this.stack = new IntPoint[conf.outWidth * conf.outHeight * patternCount];
-        this.stacksize = 0;
+        this.stack = new Stack<>();
     }
 
     private Integer findLowestPositionEntropy(final PatternSet<T> in, final Random random) {
@@ -125,7 +122,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             }
             return ObserveResult.DONE;
         } else {
-            // Choose a pattern by a random sample, weighted by the pattern frequency in the source data
+            // Choose a pattern by a random sample, weighted by the pattern frequency in the source data.
             double[] distribution = new double[T];
             for (int t = 0; t < T; t++) {
                 distribution[t] = this.positions[argmin].wave[t] ? in.getPatternByIndex(t).getFrequency() : 0;
@@ -150,16 +147,14 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
         final int[] comp = this.positions[i].compatible[t];
         for (int d = 0; d < 4; d++) comp[d] = 0;
-        this.stack[this.stacksize] = new IntPoint(i, t);
-        this.stacksize++;
+        stack.push(new IntPoint(i, t));
 
         this.positions[i].ban(in.getPatternByIndex(t));
     }
 
     protected void propagate(final PatternSet<T> in) {
-        while (this.stacksize > 0) {
-            IntPoint e1 = this.stack[this.stacksize - 1];
-            this.stacksize--;
+        while (!this.stack.isEmpty()) {
+            IntPoint e1 = this.stack.pop();
 
             int i1 = e1.getFirst();
             int x1 = i1 % conf.outWidth;
