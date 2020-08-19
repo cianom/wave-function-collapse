@@ -69,16 +69,14 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.stacksize = 0;
     }
 
-    ObserveResult observe(final PatternSet<T> in, final Random random) {
-        final int T = in.getPatternCount();
-        double min = 1e+3;
+    private Integer findLowestPositionEntropy(final PatternSet<T> in, final Random random) {
         int argmin = -1;
-
+        double min = 1e+3;
         for (int i = 0; i < this.positions.length; i++) {
             if (this.onBoundary(in, i % conf.outWidth, i / conf.outWidth)) continue;
 
-            int amount = this.positions[i].sumOfOnes;
-            if (amount == 0) return ObserveResult.FAILED;
+            int amount = this.positions[i].potentialPatterns;
+            if (amount == 0) return null;
 
             double entropy = this.positions[i].entropy;
 
@@ -90,9 +88,21 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 }
             }
         }
+        return argmin;
+    }
 
+    ObserveResult observe(final PatternSet<T> in, final Random random) {
+        final int T = in.getPatternCount();
+
+
+        // Find position with lowest entropy.
+        final Integer argmin = findLowestPositionEntropy(in, random);
+
+        if (argmin == null) {
+            return ObserveResult.FAILED;
+        }
         // If all cells are at entropy 0, processing is complete:
-        if (argmin == -1) {
+        else if (argmin == -1) {
             // Build collapsed observations for completion
             this.observed = new int[conf.outWidth * conf.outHeight];
             this.observedOut = (T[]) Array.newInstance(in.getValueClass(), conf.outWidth * conf.outHeight);
@@ -188,11 +198,12 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.clear(in);
         final Random random = new Random(conf.seed);
 
-        for (int l = 0; l < conf.limit || conf.limit == 0; l++) {
+        int runs = 0;
+        for (; runs < conf.limit || conf.limit == 0; runs++) {
             ObserveResult result = this.observe(in, random);
             switch (result) {
                 case DONE:
-                    return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in);
+                    return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
                 case NOT_DONE:
                     this.propagate(in);
                     break;
@@ -201,7 +212,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             }
         }
 
-        return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in);
+        return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
     }
 
     protected void clear(final PatternSet<T> in) {
@@ -237,7 +248,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         }
     }
 
-    Boolean agrees(final Pattern patterns1, final Pattern patterns2, final Boundary b, final int N) {
+    Boolean agrees(final Pattern p1, final Pattern p2, final Boundary b, final int N) {
         final int xmin = Math.max(b.x, 0);
         final int xmax = b.x < 0 ? b.x + N : N;
         final int ymin = Math.max(b.y, 0);
@@ -245,7 +256,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
         for (int y = ymin; y < ymax; y++) {
             for (int x = xmin; x < xmax; x++) {
-                if (!Objects.equals(patterns1.getData()[x + N * y], patterns2.getData()[x - b.x + N * (y - b.y)])) return false;
+                if (!Objects.equals(p1.getData()[x + N * y], p2.getData()[x - b.x + N * (y - b.y)])) return false;
             }
         }
         return true;
@@ -260,12 +271,14 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         public final int height;
         public final T[] observed;
         public final PatternSet<T> in;
+        public final int runCount;
 
-        public Solution(int width, int height, T[] observed, PatternSet<T> in) {
+        public Solution(int width, int height, T[] observed, PatternSet<T> in, final int runCount) {
             this.width = width;
             this.height = height;
             this.observed = observed;
             this.in = in;
+            this.runCount = runCount;
         }
     }
 

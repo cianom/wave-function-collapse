@@ -8,16 +8,16 @@ class PositionState {
     double entropy;
     double sumOfWeights;
     double sumOfWeightLogWeights;
-    int sumOfOnes;
+    int potentialPatterns;
     // patternIndex, boundary
     int[][] compatible;
 
-    private PositionState(boolean[] wave, double entropy, double sumOfWeights, double sumOfWeightLogWeights, int sumOfOnes, int[][] compatible) {
+    private PositionState(boolean[] wave, double entropy, double sumOfWeights, double sumOfWeightLogWeights, int potentialPatterns, int[][] compatible) {
         this.wave = wave;
         this.entropy = entropy;
         this.sumOfWeights = sumOfWeights;
         this.sumOfWeightLogWeights = sumOfWeightLogWeights;
-        this.sumOfOnes = sumOfOnes;
+        this.potentialPatterns = potentialPatterns;
         this.compatible = compatible;
     }
 
@@ -47,7 +47,7 @@ class PositionState {
 
     public void ban(final Pattern p) {
 
-        this.sumOfOnes -= 1;
+        this.potentialPatterns--;
         this.sumOfWeights -= p.getFrequency();
         this.sumOfWeightLogWeights -= p.getFrequencyLogFrequency();
 
