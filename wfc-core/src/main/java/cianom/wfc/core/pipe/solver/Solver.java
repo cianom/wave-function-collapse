@@ -15,25 +15,14 @@ import java.util.*;
 public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     private final ModelConfig conf;
-    protected boolean[][] wave;
     protected final Map<Boundary, int[][]> propagator;
-    int[][][] compatible;
     protected int[] observed;
     protected T[] observedOut;
 
     IntPoint[] stack;
     int stacksize;
 
-    protected boolean periodic;
-    double[] weightLogWeights;
-
-    int[] sumsOfOnes;
-    double sumOfWeights;
-    double sumOfWeightLogWeights;
-    double startingEntropy;
-    double[] sumsOfWeights;
-    double[] sumsOfWeightLogWeights;
-    double[] entropies;
+    private PositionState[] positions;
 
     public Solver(final ModelConfig conf) {
         this.conf = conf;
@@ -42,10 +31,9 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     protected boolean onBoundary(final PatternSet<T> in, int x, int y) {
         return (
-                !this.periodic &&
+                !this.conf.periodicOutput &&
                         (x + in.getN() > conf.outWidth || y + in.getN() > conf.outHeight || x < 0 || y < 0)
         );
-
     }
 
 
@@ -72,34 +60,12 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         }
         // End build propagator
 
-        this.wave = new boolean[conf.outWidth * conf.outHeight][];
-        this.compatible = new int[this.wave.length][][];
-        for (int i = 0; i < wave.length; i++) {
-            this.wave[i] = new boolean[patternCount];
-            this.compatible[i] = new int[patternCount][];
-            for (int t = 0; t < patternCount; t++) this.compatible[i][t] = new int[4];
+        this.positions = new PositionState[conf.outWidth * conf.outHeight];
+        for (int i = 0; i < positions.length; i++) {
+            this.positions[i] = PositionState.create(in);
         }
 
-        this.weightLogWeights = new double[patternCount];
-        this.sumOfWeights = 0;
-        this.sumOfWeightLogWeights = 0;
-
-        for (int t = 0; t < patternCount; t++) {
-            final double weight = in.getPatternByIndex(t).getFrequency();
-            this.weightLogWeights[t] = weight * Math.log(weight);
-            this.sumOfWeights += weight;
-            this.sumOfWeightLogWeights += this.weightLogWeights[t];
-        }
-
-        this.startingEntropy =
-                Math.log(this.sumOfWeights) - (this.sumOfWeightLogWeights / this.sumOfWeights);
-
-        this.sumsOfOnes = new int[conf.outWidth * conf.outHeight];
-        this.sumsOfWeights = new double[conf.outWidth * conf.outHeight];
-        this.sumsOfWeightLogWeights = new double[conf.outWidth * conf.outHeight];
-        this.entropies = new double[conf.outWidth * conf.outHeight];
-
-        this.stack = new IntPoint[this.wave.length * patternCount];
+        this.stack = new IntPoint[conf.outWidth * conf.outHeight * patternCount];
         this.stacksize = 0;
     }
 
@@ -108,13 +74,13 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         double min = 1e+3;
         int argmin = -1;
 
-        for (int i = 0; i < this.wave.length; i++) {
+        for (int i = 0; i < this.positions.length; i++) {
             if (this.onBoundary(in, i % conf.outWidth, i / conf.outWidth)) continue;
 
-            int amount = this.sumsOfOnes[i];
+            int amount = this.positions[i].sumOfOnes;
             if (amount == 0) return ObserveResult.FAILED;
 
-            double entropy = this.entropies[i];
+            double entropy = this.positions[i].entropy;
 
             if (amount > 1 && entropy <= min) {
                 double noise = 1e-6 * random.nextDouble();
@@ -130,9 +96,9 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             // Build collapsed observations for completion
             this.observed = new int[conf.outWidth * conf.outHeight];
             this.observedOut = (T[]) Array.newInstance(in.getValueClass(), conf.outWidth * conf.outHeight);
-            for (int i = 0; i < this.wave.length; i++) {
+            for (int i = 0; i < this.positions.length; i++) {
                 for (int t = 0; t < T; t++) {
-                    if (this.wave[i][t]) {
+                    if (this.positions[i].wave[t]) {
                         final int x = i % conf.outWidth;
                         final int y = i / conf.outWidth;
                         int dx = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
@@ -152,12 +118,12 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             // Choose a pattern by a random sample, weighted by the pattern frequency in the source data
             double[] distribution = new double[T];
             for (int t = 0; t < T; t++) {
-                distribution[t] = this.wave[argmin][t] ? in.getPatternByIndex(t).getFrequency() : 0;
+                distribution[t] = this.positions[argmin].wave[t] ? in.getPatternByIndex(t).getFrequency() : 0;
             }
 
             final int r = ArrayUtil.weightedRandomIndex(distribution, random.nextDouble());
 
-            boolean[] w = this.wave[argmin];
+            boolean[] w = this.positions[argmin].wave;
             for (int t = 0; t < T; t++) {
                 if (w[t] != (t == r)) {
                     // Set the boolean array in this cell to false, except for the chosen pattern
@@ -170,19 +136,14 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     protected void ban(final PatternSet<T> in, int i, int t) {
-        this.wave[i][t] = false;
+        this.positions[i].wave[t] = false;
 
-        final int[] comp = this.compatible[i][t];
+        final int[] comp = this.positions[i].compatible[t];
         for (int d = 0; d < 4; d++) comp[d] = 0;
         this.stack[this.stacksize] = new IntPoint(i, t);
         this.stacksize++;
 
-        this.sumsOfOnes[i] -= 1;
-        this.sumsOfWeights[i] -= in.getPatternByIndex(t).getFrequency();
-        this.sumsOfWeightLogWeights[i] -= this.weightLogWeights[t];
-
-        double sum = this.sumsOfWeights[i];
-        this.entropies[i] = Math.log(sum) - this.sumsOfWeightLogWeights[i] / sum;
+        this.positions[i].ban(in.getPatternByIndex(t));
     }
 
     protected void propagate(final PatternSet<T> in) {
@@ -207,7 +168,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
                 int i2 = x2 + y2 * conf.outWidth;
                 int[] p = this.propagator.get(b)[e1.getSecond()];
-                int[][] compat = this.compatible[i2];
+                int[][] compat = this.positions[i2].compatible;
 
                 for (final int t2 : p) {
                     int[] comp = compat[t2];
@@ -222,7 +183,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     @Override
     public Solution<T> run(final PatternSet<T> in) {
-        if (this.wave == null) this.init(in);
+        if (this.positions == null) this.init(in);
 
         this.clear(in);
         final Random random = new Random(conf.seed);
@@ -247,20 +208,15 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         final int patternCount = in.getPatternCount();
         final int ground = in.computeGround();
 
-        for (int i = 0; i < this.wave.length; i++) {
+        for (int i = 0; i < this.positions.length; i++) {
             for (int t = 0; t < patternCount; t++) {
-                this.wave[i][t] = true;
+                this.positions[i].wave[t] = true;
                 for (int d = 0; d < 4; d++) {
                     final Boundary b = Boundary.values()[d];
-                    this.compatible[i][t][d] =
+                    this.positions[i].compatible[t][d] =
                             this.propagator.get(b.opposite())[t].length;
                 }
             }
-
-            this.sumsOfOnes[i] = in.getPatternCount();
-            this.sumsOfWeights[i] = this.sumOfWeights;
-            this.sumsOfWeightLogWeights[i] = this.sumOfWeightLogWeights;
-            this.entropies[i] = this.startingEntropy;
 
             // Overlapping clear
             if (ground != 0) {
@@ -318,12 +274,14 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         public final int seed;
         public final int outWidth;
         public final int outHeight;
+        public final boolean periodicOutput;
 
-        public ModelConfig(int limit, int seed, int outWidth, int outHeight) {
+        public ModelConfig(int limit, int seed, int outWidth, int outHeight, boolean periodicOutput) {
             this.limit = limit;
             this.seed = seed;
             this.outWidth = outWidth;
             this.outHeight = outHeight;
+            this.periodicOutput = periodicOutput;
         }
     }
 

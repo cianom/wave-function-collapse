@@ -21,6 +21,10 @@ public class Pattern {
         return frequency;
     }
 
+    public double getFrequencyLogFrequency() {
+        return frequency  * Math.log(frequency);
+    }
+
     public Integer[] getData() {
         return data;
     }

@@ -19,7 +19,7 @@ public class PipelineComponentTest {
 
         final Pipeline<URL, Solver.Solution<Color>> pipeline = PipelineBuilder
                 .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 1)))
-                .then(new Solver<>(new Solver.ModelConfig(0, 42, 32, 32)))
+                .then(new Solver<>(new Solver.ModelConfig(0, 42, 32, 32, false)))
                 .build();
 
         final Solver.Solution<Color> result = pipeline.run(PipelineComponentTest.class.getClassLoader().getResource("image/mond.png"));

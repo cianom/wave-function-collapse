@@ -2,7 +2,6 @@ package cianom.wfc.core.api;
 
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -46,6 +45,18 @@ public class PatternSet<T> {
         return patternsByIndex;
     }
 
+    public final double computeSumOfFrequencies() {
+        double sum = 0D;
+        for (final Pattern p : patternsByIndex) sum += p.getFrequency();
+        return sum;
+    }
+
+    public double computeSumOfFrequenciesLogFrequencies() {
+        double sum = 0D;
+        for (final Pattern p : patternsByIndex) sum += p.getFrequencyLogFrequency();
+        return sum;
+    }
+
     public int getPatternCount() {
         return patternsById.size();
     }
@@ -69,4 +80,5 @@ public class PatternSet<T> {
     public Class<T> getValueClass() {
         return valueClass;
     }
+
 }
