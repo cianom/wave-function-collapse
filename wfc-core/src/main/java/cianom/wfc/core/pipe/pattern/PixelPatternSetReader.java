@@ -45,24 +45,25 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
                 sample[x][y] = i;
             }
         }
-        final LinkedHashMap<Integer, Pattern> patterns = scanPatterns(sample, new HashSet<>(colors), new IntPoint(sourceWidth, sourceHeight));
+        final LinkedHashMap<Integer, Pattern> patterns = scanPatterns(sample, new HashSet<>(colors), sourceWidth, sourceHeight);
 
         return new PatternSet<>(conf.getN(), conf.getNominalGround(), colors, Color.class, patterns);
     }
 
     private LinkedHashMap<Integer, Pattern> scanPatterns(final Integer[][] sample,
                                                          final Set<Color> imageColors,
-                                                         final IntPoint imageDimensions) {
+                                                         final int sourceWidth,
+                                                         final int sourceHeight) {
         final LinkedHashMap<Integer, Pattern> patterns = new LinkedHashMap<>();
 
         final int sym = conf.getSymmetry();
-        final int readHeight = (conf.isPeriodicInput() ? imageDimensions.getH() : imageDimensions.getH() - conf.getN() + 1);
-        final int readWidth = (conf.isPeriodicInput() ? imageDimensions.getW() : imageDimensions.getW() - conf.getN() + 1);
+        final int readHeight = (conf.isPeriodicInput() ? sourceHeight : sourceHeight - conf.getN() + 1);
+        final int readWidth = (conf.isPeriodicInput() ? sourceWidth : sourceWidth - conf.getN() + 1);
         for (int y = 0; y < readHeight; y++) {
             for (int x = 0; x < readWidth; x++) {
                 final Pattern[] ps = new Pattern[1 + sym];
 
-                ps[0] = patternFromSample(sample, imageDimensions, x, y);
+                ps[0] = patternFromSample(sample, sourceWidth, sourceHeight, x, y);
                 if (sym >= 1) ps[1] = ps[0].reflect();
                 if (sym >= 2) ps[2] = ps[0].rotate();
                 if (sym >= 3) ps[3] = ps[2].reflect();
@@ -84,14 +85,15 @@ public class PixelPatternSetReader implements Pipe<URL, PatternSet<Color>> {
     }
 
     private Pattern patternFromSample(final Integer[][] sample,
-                                      final IntPoint imageDimensions,
+                                      final int sourceWidth,
+                                      final int sourceHeight,
                                       final int x,
                                       final int y) {
 
         final Integer[] result = new Integer[conf.getN() * conf.getN()];
         for (int dy = 0; dy < conf.getN(); dy++) {
             for (int dx = 0; dx < conf.getN(); dx++) {
-                result[dx + dy * conf.getN()] = sample[(x + dx) % imageDimensions.getW()][(y + dy) % imageDimensions.getH()];
+                result[dx + dy * conf.getN()] = sample[(x + dx) % sourceWidth][(y + dy) % sourceHeight];
             }
         }
         return new Pattern(result, conf.getN(), conf.getN(), 1D);

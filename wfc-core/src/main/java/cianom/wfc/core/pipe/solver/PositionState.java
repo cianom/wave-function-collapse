@@ -21,6 +21,14 @@ class PositionState {
         this.compatible = compatible;
     }
 
+    static PositionState[] createArray(final int length, final PatternSet<?> in) {
+        final PositionState[] positions = new PositionState[length];
+        for (int i = 0; i < positions.length; i++) {
+            positions[i] = PositionState.create(in);
+        }
+        return positions;
+
+    }
     static PositionState create(final PatternSet<?> in) {
         final int patternCount = in.getPatternCount();
 
