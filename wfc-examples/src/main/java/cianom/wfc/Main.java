@@ -19,18 +19,19 @@ public class Main {
 
     static void runOverlappingModel(final int seed, final int outW, final int outH, final boolean periodicOut, final boolean periodicIn) throws Exception {
 
+        System.out.println("Using seed " + seed);
         final Pipeline<URL, BufferedImage> pipeline = PipelineBuilder
-                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, periodicIn, 1)))
-                .then(new Solver<>(new Solver.ModelConfig(1_000_000, seed, outW, outH, periodicOut)))
+                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 3, periodicIn, 1)))
+                .then(new Solver<>(new Solver.ModelConfig(100_000_000, seed, outW, outH, periodicOut)))
                 .then(new ImageWriterPipe())
                 .build();
 
         final BufferedImage output = time("run", () ->
-                pipeline.run(Main.class.getClassLoader().getResource("image/mond.png"))
+                pipeline.run(Main.class.getClassLoader().getResource("image/flower.png"))
         );
 
         if (output != null) {
-            File output_file = new File("example" + "_out.png");
+            File output_file = new File(".example" + "_out.png");
             ImageIO.write(output, "png", output_file);
         }
     }
@@ -91,10 +92,12 @@ public class Main {
         for (int i = 0; i < 1; i++) {
             try {
 //                runOverlappingModel(new Random().nextInt(), 8, 8, false, false);
-                runOverlappingModel(42, 32, 32, false, true);
+                runOverlappingModel(1024856989, 256, 256, false, true);
+//                runOverlappingModel(new Random().nextInt(), 256, 256, false, true);
             } catch (Exception e) {
                 System.out.println("ERROR on iteration " + i);
             }
         }
+        // 1024856989
     }
 }

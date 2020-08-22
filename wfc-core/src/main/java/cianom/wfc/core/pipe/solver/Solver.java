@@ -22,13 +22,12 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     protected boolean onBoundary(final PatternSet<T> in, int x, int y) {
-        return (
-                !this.conf.periodicOutput &&
-                        (x + in.getN() > conf.outWidth || y + in.getN() > conf.outHeight || x < 0 || y < 0)
+        return (!this.conf.periodicOutput &&
+                (x + in.getN() > conf.outWidth || y + in.getN() > conf.outHeight || x < 0 || y < 0)
         );
     }
 
-    private Integer findLowestPositionEntropy(final PatternSet<T> in, PositionState[] positions, final Random random) {
+    private Integer findLowestPositionEntropy(final PatternSet<T> in, final PositionState[] positions, final Random random) {
         int minEntropyPosition = -1;
         double currentMin = 1e+3;
         for (int i = 0; i < positions.length; i++) {
@@ -52,7 +51,10 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     @SuppressWarnings("unchecked")
-    Pair<ObserveResult, Collapsed<T>[]> observe(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack, final Random random) {
+    Pair<ObserveResult, Collapsed<T>[]> observe(final PatternSet<T> in,
+                                                final PositionState[] positions,
+                                                final Stack<PatternAtPosition> stack,
+                                                final Random random) {
         final int T = in.getPatternCount();
 
         // Find position with lowest entropy.
@@ -81,8 +83,9 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
             boolean[] w = positions[minEntropyPosition].wave;
             for (final Pattern p : in.getPatterns()) {
-                if (w[p.getIndex()] != (p.getIndex() == r)) {
-                    // Set the boolean array in this cell to false, except for the chosen pattern
+                final boolean isChosenPattern = (p.getIndex() == r);
+                // Set the boolean array in this cell to false, except for the chosen pattern
+                if (!isChosenPattern && w[p.getIndex()]) {
                     this.ban(positions, stack, minEntropyPosition, p);
                 }
             }
@@ -167,6 +170,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
         int runs = 0;
         for (; runs < conf.limit || conf.limit == 0; runs++) {
+            if (runs > 0 && runs % 100_000 == 0) System.out.println("iteration " + runs);
             Pair<ObserveResult, Collapsed<T>[]> result = this.observe(in, positions, stack, random);
             switch (result.one) {
                 case DONE:
@@ -177,7 +181,6 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 case FAILED:
                     new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
             }
-            if (runs % 10_000 == 0) System.out.println("iteration " + runs);
         }
 
         return new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);

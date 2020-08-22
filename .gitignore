@@ -1,6 +1,7 @@
 # Compiled class file
 *.class
 javacore.*
+.*.png
 
 .idea/**
 *.iml
