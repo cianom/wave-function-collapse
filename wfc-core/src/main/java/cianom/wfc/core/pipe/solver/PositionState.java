@@ -8,30 +8,22 @@ class PositionState {
     final int index;
     boolean[] wave;
     double entropy;
-    double sumOfWeights;
-    double sumOfWeightLogWeights;
+    double sumOfFrequencies;
+    double sumOfFrequencyLogFrequencies;
     int potentialPatterns;
     // patternIndex, boundary
     int[][] compatible;
 
-    private PositionState(final int index, boolean[] wave, double entropy, double sumOfWeights, double sumOfWeightLogWeights, int potentialPatterns, int[][] compatible) {
+    private PositionState(final int index, boolean[] wave, double entropy, double sumOfFrequencies, double sumOfFrequencyLogFrequencies, int potentialPatterns, int[][] compatible) {
         this.index = index;
         this.wave = wave;
         this.entropy = entropy;
-        this.sumOfWeights = sumOfWeights;
-        this.sumOfWeightLogWeights = sumOfWeightLogWeights;
+        this.sumOfFrequencies = sumOfFrequencies;
+        this.sumOfFrequencyLogFrequencies = sumOfFrequencyLogFrequencies;
         this.potentialPatterns = potentialPatterns;
         this.compatible = compatible;
     }
 
-    static PositionState[] createArray(final int length, final PatternSet<?> in) {
-        final PositionState[] positions = new PositionState[length];
-        for (int i = 0; i < positions.length; i++) {
-            positions[i] = PositionState.create(i, in);
-        }
-        return positions;
-
-    }
 
     static PositionState create(final int index, final PatternSet<?> in) {
         final int patternCount = in.getPatternCount();
@@ -41,29 +33,29 @@ class PositionState {
 
         final boolean[] wave = new boolean[patternCount];
 
-        double sumOfWeight = 0D;
+        double sumOfFrequencies = 0D;
         for (int t = 0; t < patternCount; t++) {
             final double weight = in.getPatternByIndex(t).getFrequency();
-            sumOfWeight += weight;
+            sumOfFrequencies += weight;
         }
 
         final int sumOfOnes = in.getPatternCount();
 
-        final double sumOfWeightLogWeights = in.computeSumOfFrequenciesLogFrequencies();
+        final double sumOfFrequencyLogFrequencies = in.computeSumOfFrequenciesLogFrequencies();
 
         final double startingEntropy =
                 Math.log(in.computeSumOfFrequencies()) - (in.computeSumOfFrequenciesLogFrequencies() / in.computeSumOfFrequencies());
 
-        return new PositionState(index, wave, startingEntropy, sumOfWeight, sumOfWeightLogWeights, sumOfOnes, compatible);
+        return new PositionState(index, wave, startingEntropy, sumOfFrequencies, sumOfFrequencyLogFrequencies, sumOfOnes, compatible);
     }
 
     public void ban(final Pattern p) {
 
         this.potentialPatterns--;
-        this.sumOfWeights -= p.getFrequency();
-        this.sumOfWeightLogWeights -= p.getFrequencyLogFrequency();
+        this.sumOfFrequencies -= p.getFrequency();
+        this.sumOfFrequencyLogFrequencies -= p.getFrequencyLogFrequency();
 
-        this.entropy = Math.log(this.sumOfWeights) - this.sumOfWeightLogWeights / this.sumOfWeights;
+        this.entropy = Math.log(this.sumOfFrequencies) - this.sumOfFrequencyLogFrequencies / this.sumOfFrequencies;
     }
 
     public Pattern collapse(final PatternSet<?> in) {

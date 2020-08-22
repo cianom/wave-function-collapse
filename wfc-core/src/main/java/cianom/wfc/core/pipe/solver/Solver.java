@@ -21,44 +21,43 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         this.conf = conf;
     }
 
-    protected boolean onBoundary(final PatternSet<T> in, int x, int y) {
-        return (!this.conf.periodicOutput &&
-                (x + in.getN() > conf.outWidth || y + in.getN() > conf.outHeight || x < 0 || y < 0)
-        );
-    }
 
-    private Integer findLowestPositionEntropy(final PatternSet<T> in, final PositionState[] positions, final Random random) {
-        int minEntropyPosition = -1;
-        double currentMin = 1e+3;
-        for (int i = 0; i < positions.length; i++) {
-            final PositionState pos = positions[i];
-            if (this.onBoundary(in, i % conf.outWidth, i / conf.outWidth)) continue;
+    @Override
+    public Solution<T> run(final PatternSet<T> in) {
 
-            int amount = pos.potentialPatterns;
-            if (amount == 0) return null;
+        final PositionGrid grid = PositionGrid.create(conf.outWidth, conf.outHeight, conf.periodicOutput, in);
+        final Stack<PatternAtPosition> stack = new Stack<>();
 
-            double entropy = pos.entropy;
+        this.clear(in, grid, stack);
+        final Random random = new Random(conf.seed);
 
-            if (amount > 1 && entropy <= currentMin) {
-                double noise = 1e-6 * random.nextDouble();
-                if (entropy + noise < currentMin) {
-                    currentMin = entropy + noise;
-                    minEntropyPosition = pos.index;
-                }
+        int runs = 0;
+        for (; runs < conf.limit || conf.limit == 0; runs++) {
+            if (runs > 0 && runs % 100_000 == 0) System.out.println("iteration " + runs);
+            Pair<ObserveResult, Collapsed<T>[]> result = this.observe(in, grid, stack, random);
+            switch (result.one) {
+                case DONE:
+                    return new Solution<>(conf.outWidth, conf.outHeight, result.two, in, runs);
+                case NOT_DONE:
+                    this.propagate(in, grid, stack);
+                    break;
+                case FAILED:
+                    new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
             }
         }
-        return minEntropyPosition;
+
+        return new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
     }
 
     @SuppressWarnings("unchecked")
     Pair<ObserveResult, Collapsed<T>[]> observe(final PatternSet<T> in,
-                                                final PositionState[] positions,
+                                                final PositionGrid grid,
                                                 final Stack<PatternAtPosition> stack,
                                                 final Random random) {
         final int T = in.getPatternCount();
 
         // Find position with lowest entropy.
-        final Integer minEntropyPosition = findLowestPositionEntropy(in, positions, random);
+        final Integer minEntropyPosition = grid.findLowestPositionEntropy(in, random);
 
         if (minEntropyPosition == null) {
             return new Pair<>(ObserveResult.FAILED, null);
@@ -67,8 +66,8 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         else if (minEntropyPosition == -1) {
             // Build collapsed observations for completion
             final Collapsed<T>[] observed = new Collapsed[conf.outWidth * conf.outHeight];
-            for (int i = 0; i < positions.length; i++) {
-                final Pattern collapsedPattern = positions[i].collapse(in);
+            for (int i = 0; i < grid.length(); i++) {
+                final Pattern collapsedPattern = grid.get(i).collapse(in);
                 writeObserved(observed, in, i, collapsedPattern);
             }
             return new Pair<>(ObserveResult.DONE, observed);
@@ -76,17 +75,17 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             // Choose a pattern by a random sample, weighted by the pattern frequency in the source data.
             double[] distribution = new double[T];
             for (int t = 0; t < T; t++) {
-                distribution[t] = positions[minEntropyPosition].wave[t] ? in.getPatternByIndex(t).getFrequency() : 0;
+                distribution[t] = grid.get(minEntropyPosition).wave[t] ? in.getPatternByIndex(t).getFrequency() : 0;
             }
 
             final int r = ArrayUtil.weightedRandomIndex(distribution, random.nextDouble());
 
-            boolean[] w = positions[minEntropyPosition].wave;
+            boolean[] w = grid.get(minEntropyPosition).wave;
             for (final Pattern p : in.getPatterns()) {
                 final boolean isChosenPattern = (p.getIndex() == r);
                 // Set the boolean array in this cell to false, except for the chosen pattern
                 if (!isChosenPattern && w[p.getIndex()]) {
-                    this.ban(positions, stack, minEntropyPosition, p);
+                    this.ban(grid, stack, minEntropyPosition, p);
                 }
             }
 
@@ -115,17 +114,17 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         observed[i] = new Collapsed<>(i, idx, selectedPattern, v);
     }
 
-    protected void ban(final PositionState[] positions, final Stack<PatternAtPosition> propagationStack, int i, final Pattern pattern) {
-        positions[i].wave[pattern.getIndex()] = false;
+    protected void ban(final PositionGrid grid, final Stack<PatternAtPosition> propagationStack, int i, final Pattern pattern) {
+        grid.get(i).wave[pattern.getIndex()] = false;
 
-        final int[] comp = positions[i].compatible[pattern.getIndex()];
+        final int[] comp = grid.get(i).compatible[pattern.getIndex()];
         for (int d = 0; d < 4; d++) comp[d] = 0;
         propagationStack.push(new PatternAtPosition(i, pattern));
 
-        positions[i].ban(pattern);
+        grid.get(i).ban(pattern);
     }
 
-    protected void propagate(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack) {
+    protected void propagate(final PatternSet<T> in, final PositionGrid grid, final Stack<PatternAtPosition> stack) {
         while (!stack.isEmpty()) {
             PatternAtPosition pp = stack.pop();
 
@@ -137,7 +136,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 final Boundary b = Boundary.values()[d];
                 int x2 = x1 + b.x, y2 = y1 + b.y;
 
-                if (this.onBoundary(in, x2, y2)) continue;
+                if (grid.onBoundary(in.getN(), x2, y2)) continue;
 
                 if (x2 < 0) x2 += conf.outWidth;
                 else if (x2 >= conf.outWidth) x2 -= conf.outWidth;
@@ -146,51 +145,24 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
                 int i2 = x2 + y2 * conf.outWidth;
                 final List<Pattern> compatabilities = pp.getPattern().getCompatabilities(b);
-                int[][] compat = positions[i2].compatible;
+                int[][] compat = grid.get(i2).compatible;
 
                 for (final Pattern t2 : compatabilities) {
                     final int[] comp = compat[t2.getIndex()];
 
                     comp[d]--;
 
-                    if (comp[d] == 0) this.ban(positions, stack, i2, t2);
+                    if (comp[d] == 0) this.ban(grid, stack, i2, t2);
                 }
             }
         }
     }
 
-    @Override
-    public Solution<T> run(final PatternSet<T> in) {
-
-        final PositionState[] positions = PositionState.createArray(conf.outWidth * conf.outHeight, in);
-        final Stack<PatternAtPosition> stack = new Stack<>();
-
-        this.clear(in, positions, stack);
-        final Random random = new Random(conf.seed);
-
-        int runs = 0;
-        for (; runs < conf.limit || conf.limit == 0; runs++) {
-            if (runs > 0 && runs % 100_000 == 0) System.out.println("iteration " + runs);
-            Pair<ObserveResult, Collapsed<T>[]> result = this.observe(in, positions, stack, random);
-            switch (result.one) {
-                case DONE:
-                    return new Solution<>(conf.outWidth, conf.outHeight, result.two, in, runs);
-                case NOT_DONE:
-                    this.propagate(in, positions, stack);
-                    break;
-                case FAILED:
-                    new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
-            }
-        }
-
-        return new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
-    }
-
-    protected void clear(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> propagationStack) {
+    protected void clear(final PatternSet<T> in, final PositionGrid grid, final Stack<PatternAtPosition> propagationStack) {
         final int patternCount = in.getPatternCount();
         final Pattern groundPattern = in.computeGroundPattern();
 
-        for (final PositionState pos : positions) {
+        for (final PositionState pos : grid.positions) {
 
             // Reset compatibilities.
             for (final Pattern p : in.getPatterns()) {
@@ -207,16 +179,16 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 for (int x = 0; x < conf.outWidth; x++) {
                     for (int t = 0; t < patternCount; t++) {
                         if (t != groundPattern.getIndex()) {
-                            this.ban(positions, propagationStack, x + (conf.outHeight - 1) * conf.outWidth, in.getPatternByIndex(t));
+                            this.ban(grid, propagationStack, x + (conf.outHeight - 1) * conf.outWidth, in.getPatternByIndex(t));
                         }
                     }
 
                     for (int y = 0; y < conf.outHeight - 1; y++) {
-                        this.ban(positions, propagationStack, x + y * conf.outWidth, groundPattern);
+                        this.ban(grid, propagationStack, x + y * conf.outWidth, groundPattern);
                     }
                 }
 
-                this.propagate(in, positions, propagationStack);
+                this.propagate(in, grid, propagationStack);
             }
         }
     }
