@@ -24,6 +24,6 @@ public class PipelineComponentTest {
 
         final Solver.Solution<Color> result = pipeline.run(PipelineComponentTest.class.getClassLoader().getResource("image/mond.png"));
 
-        assertEquals(Arrays.hashCode(result.observed), -327106686);
+        assertEquals(1888971341, Arrays.hashCode(result.observed));
     }
 }

@@ -17,12 +17,11 @@ import static cianom.lib.Timing.time;
 public class Main {
 
 
-    static void runOverlappingModel() throws Exception {
+    static void runOverlappingModel(final int seed, final int outW, final int outH, final boolean periodicOut, final boolean periodicIn) throws Exception {
 
         final Pipeline<URL, BufferedImage> pipeline = PipelineBuilder
-                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, true, 0)))
-//                    .then(new PatternPrinter<>())
-                .then(new Solver<>(new Solver.ModelConfig(0, new Random().nextInt(), 48, 48, false)))
+                .begin(new PixelPatternSetReader(new PixelPatternSetReader.PixelReadConfig(0, 2, periodicIn, 1)))
+                .then(new Solver<>(new Solver.ModelConfig(1_000_000, seed, outW, outH, periodicOut)))
                 .then(new ImageWriterPipe())
                 .build();
 
@@ -89,9 +88,10 @@ public class Main {
 
     public static void main(String[] args) {
 //    runRichModel();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1; i++) {
             try {
-                runOverlappingModel();
+                runOverlappingModel(new Random().nextInt(), 8, 8, false, false);
+//                runOverlappingModel(42, 32, 32, false);
             } catch (Exception e) {
                 System.out.println("ERROR on iteration " + i);
             }

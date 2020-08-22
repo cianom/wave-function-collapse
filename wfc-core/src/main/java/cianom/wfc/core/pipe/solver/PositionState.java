@@ -65,4 +65,14 @@ class PositionState {
 
         this.entropy = Math.log(this.sumOfWeights) - this.sumOfWeightLogWeights / this.sumOfWeights;
     }
+
+    public Pattern collapse(final PatternSet<?> in) {
+        for (final Pattern p : in.getPatterns()) {
+            if (this.wave[p.getIndex()]) {
+                return in.getPatternByIndex(p.getIndex());
+            }
+        }
+        throw new IllegalStateException("Un-collapsable position at index " + index);
+
+    }
 }

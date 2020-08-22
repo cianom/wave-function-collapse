@@ -54,6 +54,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         return minEntropyPosition;
     }
 
+    @SuppressWarnings("unchecked")
     ObserveResult observe(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack, final Random random) {
         final int T = in.getPatternCount();
 
@@ -69,21 +70,8 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             this.observed = new int[conf.outWidth * conf.outHeight];
             this.observedOut = (T[]) Array.newInstance(in.getValueClass(), conf.outWidth * conf.outHeight);
             for (int i = 0; i < positions.length; i++) {
-                for (int t = 0; t < T; t++) {
-                    if (positions[i].wave[t]) {
-                        final int x = i % conf.outWidth;
-                        final int y = i / conf.outWidth;
-                        int dx = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
-                        int dy = y < conf.outHeight - in.getN() + 1 ? 0 : in.getN() - 1;
-                        int idx = dx + dy * in.getN();
-                        final Integer xxxx = in.getPatternByIndex(t).value(idx);
-                        final T v = in.getDistinctValues().get(xxxx);
-                        observedOut[i] = v;
-
-                        this.observed[i] = t;
-                        break;
-                    }
-                }
+                final Pattern collapsedPattern = positions[i].collapse(in);
+                writeObserved(in, i, collapsedPattern);
             }
             return ObserveResult.DONE;
         } else {
@@ -105,6 +93,28 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
             return ObserveResult.NOT_DONE;
         }
+    }
+
+    private void writeObserved(final PatternSet<T> in, int i, Pattern collapsed) {
+        final int x = i % conf.outWidth;
+        final int y = i / conf.outWidth;
+        final int xAdjust = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
+        final int yAdjust = y < conf.outHeight - in.getN() + 1 ? 0 : in.getN() - 1;
+        final boolean onEdge = (xAdjust > 0 || yAdjust > 0);
+
+        // If we're on the edge, we want to select the adjacent pattern but with .
+        Pattern selectedPattern = collapsed;
+        if (onEdge) {
+            final int tAdjust = observed[x - xAdjust + (y - yAdjust) * conf.outWidth];
+            selectedPattern = in.getPatternByIndex(tAdjust);
+        }
+
+        final int idx = xAdjust + yAdjust * in.getN();
+        final Integer valueIndex = selectedPattern.value(idx);
+        final T v = in.getDistinctValues().get(valueIndex);
+
+        this.observedOut[i] = v;
+        this.observed[i] = selectedPattern.getIndex();
     }
 
     protected void ban(final PositionState[] positions, final Stack<PatternAtPosition> propagationStack, int i, final Pattern pattern) {
@@ -178,7 +188,7 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
     }
 
-    protected void clear(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack) {
+    protected void clear(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> propagationStack) {
         final int patternCount = in.getPatternCount();
         final Pattern groundPattern = in.computeGroundPattern();
 
@@ -199,16 +209,16 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 for (int x = 0; x < conf.outWidth; x++) {
                     for (int t = 0; t < patternCount; t++) {
                         if (t != groundPattern.getIndex()) {
-                            this.ban(positions, stack, x + (conf.outHeight - 1) * conf.outWidth, in.getPatternByIndex(t));
+                            this.ban(positions, propagationStack, x + (conf.outHeight - 1) * conf.outWidth, in.getPatternByIndex(t));
                         }
                     }
 
                     for (int y = 0; y < conf.outHeight - 1; y++) {
-                        this.ban(positions, stack, x + y * conf.outWidth, groundPattern);
+                        this.ban(positions, propagationStack, x + y * conf.outWidth, groundPattern);
                     }
                 }
 
-                this.propagate(in, positions, stack);
+                this.propagate(in, positions, propagationStack);
             }
         }
     }
