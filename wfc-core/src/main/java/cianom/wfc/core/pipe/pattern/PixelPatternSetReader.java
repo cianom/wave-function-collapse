@@ -1,6 +1,5 @@
 package cianom.wfc.core.pipe.pattern;
 
-import cianom.lib.IntPoint;
 import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
 import cianom.wfc.core.api.PatternSetBuilder;

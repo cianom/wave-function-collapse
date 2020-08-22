@@ -4,6 +4,8 @@ import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
 
 class PositionState {
+
+    final int index;
     boolean[] wave;
     double entropy;
     double sumOfWeights;
@@ -12,7 +14,8 @@ class PositionState {
     // patternIndex, boundary
     int[][] compatible;
 
-    private PositionState(boolean[] wave, double entropy, double sumOfWeights, double sumOfWeightLogWeights, int potentialPatterns, int[][] compatible) {
+    private PositionState(final int index, boolean[] wave, double entropy, double sumOfWeights, double sumOfWeightLogWeights, int potentialPatterns, int[][] compatible) {
+        this.index = index;
         this.wave = wave;
         this.entropy = entropy;
         this.sumOfWeights = sumOfWeights;
@@ -24,12 +27,13 @@ class PositionState {
     static PositionState[] createArray(final int length, final PatternSet<?> in) {
         final PositionState[] positions = new PositionState[length];
         for (int i = 0; i < positions.length; i++) {
-            positions[i] = PositionState.create(in);
+            positions[i] = PositionState.create(i, in);
         }
         return positions;
 
     }
-    static PositionState create(final PatternSet<?> in) {
+
+    static PositionState create(final int index, final PatternSet<?> in) {
         final int patternCount = in.getPatternCount();
 
         final int[][] compatible = new int[patternCount][];
@@ -50,7 +54,7 @@ class PositionState {
         final double startingEntropy =
                 Math.log(in.computeSumOfFrequencies()) - (in.computeSumOfFrequenciesLogFrequencies() / in.computeSumOfFrequencies());
 
-        return new PositionState(wave, startingEntropy, sumOfWeight, sumOfWeightLogWeights, sumOfOnes, compatible);
+        return new PositionState(index, wave, startingEntropy, sumOfWeight, sumOfWeightLogWeights, sumOfOnes, compatible);
     }
 
     public void ban(final Pattern p) {
@@ -59,7 +63,6 @@ class PositionState {
         this.sumOfWeights -= p.getFrequency();
         this.sumOfWeightLogWeights -= p.getFrequencyLogFrequency();
 
-        double sum = this.sumOfWeights;
-        this.entropy = Math.log(sum) - this.sumOfWeightLogWeights / sum;
+        this.entropy = Math.log(this.sumOfWeights) - this.sumOfWeightLogWeights / this.sumOfWeights;
     }
 }
