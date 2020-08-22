@@ -4,10 +4,12 @@ package cianom.wfc.core.pipe.solver;
 import cianom.lib.ArrayUtil;
 import cianom.lib.Boundary;
 import cianom.lib.IntPoint;
+import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
 import cianom.wfc.core.api.Pipe;
 
 import java.lang.reflect.Array;
+import java.util.List;
 import java.util.Random;
 import java.util.Stack;
 
@@ -29,8 +31,6 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                         (x + in.getN() > conf.outWidth || y + in.getN() > conf.outHeight || x < 0 || y < 0)
         );
     }
-
-
 
     private Integer findLowestPositionEntropy(final PatternSet<T> in, PositionState[] positions, final Random random) {
         int argmin = -1;
@@ -56,7 +56,6 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     ObserveResult observe(final PatternSet<T> in, final PositionState[] positions, final Stack<IntPoint> stack, final Random random) {
         final int T = in.getPatternCount();
-
 
         // Find position with lowest entropy.
         final Integer argmin = findLowestPositionEntropy(in, positions, random);
@@ -97,10 +96,10 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
             final int r = ArrayUtil.weightedRandomIndex(distribution, random.nextDouble());
 
             boolean[] w = positions[argmin].wave;
-            for (int t = 0; t < T; t++) {
-                if (w[t] != (t == r)) {
+            for (final Pattern p : in.getPatterns()) {
+                if (w[p.getIndex()] != (p.getIndex() == r)) {
                     // Set the boolean array in this cell to false, except for the chosen pattern
-                    this.ban(in, positions, stack, argmin, t);
+                    this.ban(positions, stack, argmin, p);
                 }
             }
 
@@ -108,17 +107,17 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         }
     }
 
-    protected void ban(final PatternSet<T> in, final PositionState[] positions, final Stack<IntPoint> stack, int i, int t) {
-        positions[i].wave[t] = false;
+    protected void ban(final PositionState[] positions, final Stack<IntPoint> stack, int i, final Pattern t) {
+        positions[i].wave[t.getIndex()] = false;
 
-        final int[] comp = positions[i].compatible[t];
+        final int[] comp = positions[i].compatible[t.getIndex()];
         for (int d = 0; d < 4; d++) comp[d] = 0;
-        stack.push(new IntPoint(i, t));
+        stack.push(new IntPoint(i, t.getIndex()));
 
-        positions[i].ban(in.getPatternByIndex(t));
+        positions[i].ban(t);
     }
 
-    protected void propagate(final PatternSet<T> in, final PositionState[] positions, final Propagator prop, final Stack<IntPoint> stack) {
+    protected void propagate(final PatternSet<T> in, final PositionState[] positions, final Stack<IntPoint> stack) {
         while (!stack.isEmpty()) {
             IntPoint e1 = stack.pop();
 
@@ -138,15 +137,16 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 else if (y2 >= conf.outHeight) y2 -= conf.outHeight;
 
                 int i2 = x2 + y2 * conf.outWidth;
-                int[] p = prop.get(b, e1.getSecond());
+                final Pattern pattern = in.getPatternByIndex(e1.getSecond());
+                final List<Pattern> compatabilities = pattern.getCompatabilities(b);
                 int[][] compat = positions[i2].compatible;
 
-                for (final int t2 : p) {
-                    int[] comp = compat[t2];
+                for (final Pattern t2 : compatabilities) {
+                    int[] comp = compat[t2.getIndex()];
 
                     comp[d]--;
 
-                    if (comp[d] == 0) this.ban(in, positions, stack, i2, t2);
+                    if (comp[d] == 0) this.ban(positions, stack, i2, t2);
                 }
             }
         }
@@ -155,11 +155,10 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     @Override
     public Solution<T> run(final PatternSet<T> in) {
 
-        final Propagator prop = Propagator.build(in);
         final PositionState[] positions = PositionState.createArray(conf.outWidth * conf.outHeight, in);
         final Stack<IntPoint> stack = new Stack<>();
 
-        this.clear(in, positions, prop, stack);
+        this.clear(in, positions, stack);
         final Random random = new Random(conf.seed);
 
         int runs = 0;
@@ -169,45 +168,46 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 case DONE:
                     return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
                 case NOT_DONE:
-                    this.propagate(in, positions, prop, stack);
+                    this.propagate(in, positions, stack);
                     break;
                 case FAILED:
                     break;
             }
+            if (runs % 10_000 == 0) System.out.println("iteration " + runs);
         }
 
         return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
     }
 
-    protected void clear(final PatternSet<T> in, final PositionState[] positions, final Propagator prop, final Stack<IntPoint> stack) {
+    protected void clear(final PatternSet<T> in, final PositionState[] positions, final Stack<IntPoint> stack) {
         final int patternCount = in.getPatternCount();
-        final int ground = in.computeGround();
+        final Pattern groundPattern = in.computeGroundPattern();
 
         for (int i = 0; i < positions.length; i++) {
             for (int t = 0; t < patternCount; t++) {
                 positions[i].wave[t] = true;
+                final Pattern p = in.getPatternByIndex(t);
                 for (int d = 0; d < 4; d++) {
                     final Boundary b = Boundary.values()[d];
-                    positions[i].compatible[t][d] =
-                            prop.get(b.opposite(), t).length;
+                    positions[i].compatible[t][d] = p.getCompatabilities(b.opposite()).size();
                 }
             }
 
             // Overlapping clear
-            if (ground != 0) {
+            if (groundPattern != null) {
                 for (int x = 0; x < conf.outWidth; x++) {
                     for (int t = 0; t < patternCount; t++) {
-                        if (t != ground) {
-                            this.ban(in, positions, stack, x + (conf.outHeight - 1) * conf.outWidth, t);
+                        if (t != groundPattern.getIndex()) {
+                            this.ban(positions, stack, x + (conf.outHeight - 1) * conf.outWidth, in.getPatternByIndex(t));
                         }
                     }
 
                     for (int y = 0; y < conf.outHeight - 1; y++) {
-                        this.ban(in, positions, stack, x + y * conf.outWidth, ground);
+                        this.ban(positions, stack, x + y * conf.outWidth, groundPattern);
                     }
                 }
 
-                this.propagate(in, positions, prop, stack);
+                this.propagate(in, positions, stack);
             }
         }
     }

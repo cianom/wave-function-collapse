@@ -1,9 +1,6 @@
 package cianom.wfc.core.api;
 
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 
 public class PatternSet<T> {
 
@@ -20,11 +17,11 @@ public class PatternSet<T> {
     private final LinkedHashMap<Integer, Pattern> patternsById;
     private final List<Pattern> patternsByIndex;
 
-    public PatternSet(final int n,
-                      final int nominalGround,
-                      final List<T> distinctValues,
-                      final Class<T> valueClass,
-                      final LinkedHashMap<Integer, Pattern> patternsById) {
+    PatternSet(final int n,
+               final int nominalGround,
+               final List<T> distinctValues,
+               final Class<T> valueClass,
+               final LinkedHashMap<Integer, Pattern> patternsById) {
         this.N = n;
         this.nominalGround = nominalGround;
         this.distinctValues = distinctValues;
@@ -32,6 +29,7 @@ public class PatternSet<T> {
         this.patternsById = patternsById;
         this.patternsByIndex = new ArrayList<>(patternsById.values());
     }
+
 
     public final Pattern getPatternByIndex(final int index) {
         return patternsByIndex.get(index);
@@ -61,8 +59,9 @@ public class PatternSet<T> {
         return patternsById.size();
     }
 
-    public int computeGround() {
-        return (nominalGround + getPatternCount()) % getPatternCount();
+    public Pattern computeGroundPattern() {
+        final int groundPattern = (nominalGround + getPatternCount()) % getPatternCount();
+        return (groundPattern == 0) ? null : getPatternByIndex(groundPattern);
     }
 
     public int getN() {
@@ -80,5 +79,6 @@ public class PatternSet<T> {
     public Class<T> getValueClass() {
         return valueClass;
     }
+
 
 }

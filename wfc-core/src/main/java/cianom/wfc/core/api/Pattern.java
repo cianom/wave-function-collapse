@@ -1,6 +1,8 @@
 package cianom.wfc.core.api;
 
-import java.util.Arrays;
+import cianom.lib.Boundary;
+
+import java.util.*;
 import java.util.function.BiFunction;
 
 public class Pattern {
@@ -10,11 +12,31 @@ public class Pattern {
     private final int h;
     private final double frequency;
 
+    private Integer index;
+    private Map<Boundary, List<Pattern>> compatibilies;
+
     public Pattern(final Integer[] data, final int w, final int h, final double frequency) {
         this.data = data;
         this.w = w;
         this.h = h;
         this.frequency = frequency;
+        this.compatibilies = new HashMap<>();
+    }
+
+    public int getN() {
+        return w;
+    }
+
+    public void setIndex(final int index) {
+        this.index = index;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public List<Pattern> getCompatabilities(final Boundary b) {
+        return this.compatibilies.get(b);
     }
 
     public double getFrequency() {
@@ -35,6 +57,10 @@ public class Pattern {
 
     public int length() {
         return data.length;
+    }
+
+    void refreshCompatabilities(final Map<Boundary, List<Pattern>> newCompatibilies) {
+        this.compatibilies = newCompatibilies;
     }
 
     public int computeId(final int uniqueValuesCount) {
@@ -84,11 +110,20 @@ public class Pattern {
                 ", frequency=" + frequency +
                 '}';
     }
-/*
-    array pattern
-    N*N
-    Adjacency rules
-    Frequency hints
-     */
+
+    public boolean agrees(final Pattern other, final Boundary b, final int N) {
+        final int xmin = Math.max(b.x, 0);
+        final int xmax = b.x < 0 ? b.x + N : N;
+        final int ymin = Math.max(b.y, 0);
+        final int ymax = b.y < 0 ? b.y + N : N;
+
+        for (int y = ymin; y < ymax; y++) {
+            for (int x = xmin; x < xmax; x++) {
+                if (!Objects.equals(this.getData()[x + N * y], other.getData()[x - b.x + N * (y - b.y)])) return false;
+            }
+        }
+        return true;
+    }
+
 
 }
