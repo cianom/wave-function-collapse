@@ -1,6 +1,7 @@
 package cianom.wfc.core.pipe.image;
 
 import cianom.wfc.core.api.Pipe;
+import cianom.wfc.core.pipe.solver.Collapsed;
 import cianom.wfc.core.pipe.solver.Solver;
 
 import java.awt.*;
@@ -11,7 +12,7 @@ public class ImageWriterPipe implements Pipe<Solver.Solution<Color>, BufferedIma
 
     @Override
     public BufferedImage run(final Solver.Solution<Color> in) {
-        final Color[] observed = in.observed;
+        final Collapsed<Color>[] observed = in.observed;
         final int width = in.width;
         final int height = in.height;
 
@@ -24,7 +25,7 @@ public class ImageWriterPipe implements Pipe<Solver.Solution<Color>, BufferedIma
         if (observed != null) {
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
-                    final Color c = observed[x + y * width];
+                    final Color c = observed[x + y * width].value;
                     result.setRGB(x, y, c.getRGB());
                 }
             }

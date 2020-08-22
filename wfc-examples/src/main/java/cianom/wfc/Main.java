@@ -74,8 +74,8 @@ public class Main {
             if (output != null) {
                 for (int j = 0; j < h; j++) {
                     for (int i = 0; i < w; i++) {
-                        RichTile a = output.observed[0];
-                        System.out.print(output.observed[i + j * w].toChar() + " ");
+                        RichTile a = output.observed[0].value;
+                        System.out.print(output.observed[i + j * w].value.toChar() + " ");
                     }
                     System.out.println();
                 }
@@ -90,8 +90,8 @@ public class Main {
 //    runRichModel();
         for (int i = 0; i < 1; i++) {
             try {
-                runOverlappingModel(new Random().nextInt(), 8, 8, false, false);
-//                runOverlappingModel(42, 32, 32, false);
+//                runOverlappingModel(new Random().nextInt(), 8, 8, false, false);
+                runOverlappingModel(42, 32, 32, false, true);
             } catch (Exception e) {
                 System.out.println("ERROR on iteration " + i);
             }

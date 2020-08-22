@@ -3,11 +3,11 @@ package cianom.wfc.core.pipe.solver;
 
 import cianom.lib.ArrayUtil;
 import cianom.lib.Boundary;
+import cianom.lib.Pair;
 import cianom.wfc.core.api.Pattern;
 import cianom.wfc.core.api.PatternSet;
 import cianom.wfc.core.api.Pipe;
 
-import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Random;
 import java.util.Stack;
@@ -16,9 +16,6 @@ import java.util.Stack;
 public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
     private final ModelConfig conf;
-
-    protected int[] observed;
-    protected T[] observedOut;
 
     public Solver(final ModelConfig conf) {
         this.conf = conf;
@@ -55,25 +52,24 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     }
 
     @SuppressWarnings("unchecked")
-    ObserveResult observe(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack, final Random random) {
+    Pair<ObserveResult, Collapsed<T>[]> observe(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> stack, final Random random) {
         final int T = in.getPatternCount();
 
         // Find position with lowest entropy.
         final Integer minEntropyPosition = findLowestPositionEntropy(in, positions, random);
 
         if (minEntropyPosition == null) {
-            return ObserveResult.FAILED;
+            return new Pair<>(ObserveResult.FAILED, null);
         }
         // If all cells are at entropy 0, processing is complete:
         else if (minEntropyPosition == -1) {
             // Build collapsed observations for completion
-            this.observed = new int[conf.outWidth * conf.outHeight];
-            this.observedOut = (T[]) Array.newInstance(in.getValueClass(), conf.outWidth * conf.outHeight);
+            final Collapsed<T>[] observed = new Collapsed[conf.outWidth * conf.outHeight];
             for (int i = 0; i < positions.length; i++) {
                 final Pattern collapsedPattern = positions[i].collapse(in);
-                writeObserved(in, i, collapsedPattern);
+                writeObserved(observed, in, i, collapsedPattern);
             }
-            return ObserveResult.DONE;
+            return new Pair<>(ObserveResult.DONE, observed);
         } else {
             // Choose a pattern by a random sample, weighted by the pattern frequency in the source data.
             double[] distribution = new double[T];
@@ -91,11 +87,11 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
                 }
             }
 
-            return ObserveResult.NOT_DONE;
+            return new Pair<>(ObserveResult.NOT_DONE, null);
         }
     }
 
-    private void writeObserved(final PatternSet<T> in, int i, Pattern collapsed) {
+    private void writeObserved(final Collapsed<T>[] observed, final PatternSet<T> in, int i, Pattern collapsed) {
         final int x = i % conf.outWidth;
         final int y = i / conf.outWidth;
         final int xAdjust = x < conf.outWidth - in.getN() + 1 ? 0 : in.getN() - 1;
@@ -105,16 +101,15 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
         // If we're on the edge, we want to select the adjacent pattern but with .
         Pattern selectedPattern = collapsed;
         if (onEdge) {
-            final int tAdjust = observed[x - xAdjust + (y - yAdjust) * conf.outWidth];
-            selectedPattern = in.getPatternByIndex(tAdjust);
+            final Collapsed<T> tAdjust = observed[x - xAdjust + (y - yAdjust) * conf.outWidth];
+            selectedPattern = tAdjust.pattern;
         }
 
         final int idx = xAdjust + yAdjust * in.getN();
         final Integer valueIndex = selectedPattern.value(idx);
         final T v = in.getDistinctValues().get(valueIndex);
 
-        this.observedOut[i] = v;
-        this.observed[i] = selectedPattern.getIndex();
+        observed[i] = new Collapsed<>(i, idx, selectedPattern, v);
     }
 
     protected void ban(final PositionState[] positions, final Stack<PatternAtPosition> propagationStack, int i, final Pattern pattern) {
@@ -172,20 +167,20 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
 
         int runs = 0;
         for (; runs < conf.limit || conf.limit == 0; runs++) {
-            ObserveResult result = this.observe(in, positions, stack, random);
-            switch (result) {
+            Pair<ObserveResult, Collapsed<T>[]> result = this.observe(in, positions, stack, random);
+            switch (result.one) {
                 case DONE:
-                    return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
+                    return new Solution<>(conf.outWidth, conf.outHeight, result.two, in, runs);
                 case NOT_DONE:
                     this.propagate(in, positions, stack);
                     break;
                 case FAILED:
-                    break;
+                    new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
             }
             if (runs % 10_000 == 0) System.out.println("iteration " + runs);
         }
 
-        return new Solution<>(conf.outWidth, conf.outHeight, observedOut, in, runs);
+        return new Solution<>(conf.outWidth, conf.outHeight, null, in, runs);
     }
 
     protected void clear(final PatternSet<T> in, final PositionState[] positions, final Stack<PatternAtPosition> propagationStack) {
@@ -231,11 +226,11 @@ public class Solver<T> implements Pipe<PatternSet<T>, Solver.Solution<T>> {
     public static final class Solution<T> {
         public final int width;
         public final int height;
-        public final T[] observed;
+        public final Collapsed<T>[] observed;
         public final PatternSet<T> in;
         public final int runCount;
 
-        public Solution(int width, int height, T[] observed, PatternSet<T> in, final int runCount) {
+        public Solution(int width, int height, Collapsed<T>[] observed, PatternSet<T> in, final int runCount) {
             this.width = width;
             this.height = height;
             this.observed = observed;
