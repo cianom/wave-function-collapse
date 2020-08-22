@@ -8,8 +8,8 @@ class PositionState {
     final int index;
     boolean[] wave;
     double entropy;
-    double sumOfFrequencies;
-    double sumOfFrequencyLogFrequencies;
+    private double sumOfFrequencies;
+    private double sumOfFrequencyLogFrequencies;
     int potentialPatterns;
     // patternIndex, boundary
     int[][] compatible;
